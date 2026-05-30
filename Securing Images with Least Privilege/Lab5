@@ -1,0 +1,104 @@
+Securing Images with Least Privilege
+Objectives
+By the end of this lab, you will be able to:
+
+Apply security best practices using the principle of least privilege
+Implement image provenance to verify image authenticity
+Perform cache cleanup to reduce attack surface
+Scan container images for vulnerabilities using Podman
+Create and run containers with minimal base images and non-root users
+Prerequisites
+Linux system with Podman installed (v3.0+)
+Basic understanding of container concepts
+Internet access to pull container images
+sudo privileges for system configuration
+Lab Setup
+Verify Podman installation:
+
+podman --version
+Expected Output: Version number (e.g., 3.4.4)
+
+Create a working directory:
+
+mkdir secure_lab && cd secure_lab
+Task 1: Scan Images for Vulnerabilities with Podman
+Subtask 1.1: Pull a Sample Image
+podman pull docker.io/library/nginx:latest
+Subtask 1.2: Scan the Image
+podman scan nginx:latest
+Expected Output: Vulnerability report showing CVEs and severity levels
+
+Subtask 1.3: Interpret Results
+Review the output for:
+Critical vulnerabilities (CVSS score ≥ 9.0)
+High vulnerabilities (CVSS score 7.0-8.9)
+Package names and versions affected
+Task 2: Remove Package Caches
+Subtask 2.1: Create a Dockerfile with Cache Cleaning
+FROM docker.io/library/nginx:latest
+
+# Remove package caches
+RUN rm -rf /var/cache/apt/* /var/lib/apt/lists/*
+Subtask 2.2: Build the Optimized Image
+podman build -t nginx_clean .
+Subtask 2.3: Verify Reduced Image Size
+podman images
+Expected Outcome: The new image should be slightly smaller than the original
+
+Task 3: Use Minimal Base Images
+Subtask 3.1: Create Dockerfile with Alpine Base
+FROM docker.io/library/alpine:latest
+
+RUN apk add --no-cache nginx && \
+    rm -rf /var/cache/apk/*
+Subtask 3.2: Build and Compare Sizes
+podman build -t nginx_alpine .
+podman images | grep nginx
+Expected Outcome: Alpine-based image should be significantly smaller than Debian-based
+
+Task 4: Run Container as Non-Root User
+Subtask 4.1: Create User in Dockerfile
+FROM docker.io/library/alpine:latest
+
+RUN apk add --no-cache nginx && \
+    adduser -D nginxuser && \
+    chown -R nginxuser:nginxuser /var/lib/nginx
+
+USER nginxuser
+Subtask 4.2: Build and Run Securely
+podman build -t nginx_nonroot .
+podman run -d --name secure_nginx -p 8080:80 nginx_nonroot
+Subtask 4.3: Check Running Processes
+podman exec secure_nginx ps aux
+Expected Outcome: Nginx processes should show running under nginxuser not root
+
+Task 5: Implement Image Provenance
+Subtask 5.1: Generate Image Signature
+podman image sign --sign-by your@email.com nginx_nonroot
+Subtask 5.2: Verify Signature
+podman image trust show
+Expected Outcome: Should display your signed image in the trust store
+
+Cleanup
+podman stop secure_nginx
+podman rm secure_nginx
+podman rmi nginx nginx_clean nginx_alpine nginx_nonroot
+Conclusion
+In this lab, you've implemented critical container security practices:
+
+Scanned images for vulnerabilities using Podman's native tools
+Reduced attack surface by cleaning package caches
+Used minimal base images to decrease potential vulnerabilities
+Implemented least privilege by running containers as non-root users
+Established image provenance through signing and verification
+These techniques help create more secure container deployments while adhering to the principle of least privilege.
+
+Troubleshooting Tips
+If scan fails, ensure you have the latest podman version
+For permission issues, use --privileged flag during development only
+If Alpine packages fail, check for correct package names with apk search
+For signing errors, configure GPG first with gpg --gen-key
+Next Steps
+Explore Podman's --security-opt flags for additional hardening
+Implement SELinux policies for containers
+Set up image scanning in CI/CD pipelines
