@@ -1,0 +1,141 @@
+Backup and Restore Images and Containers with Podman
+Objectives
+By the end of this lab, you will be able to:
+
+Use podman save and podman load to backup and restore container images
+Use podman commit to create new images from running containers
+Understand practical use cases and limitations of these operations
+Prerequisites
+A Linux system with Podman installed (RHEL 8+ or Fedora recommended)
+Basic familiarity with container concepts and Podman commands
+Internet access to pull container images
+1GB+ free disk space for image operations
+Lab Setup
+Verify Podman is installed:
+
+podman --version
+Expected output: podman version 3.x.x or higher
+
+Pull a sample image for testing:
+
+podman pull docker.io/library/alpine:latest
+Task 1: Save an Image to Tarball
+Objective
+Learn to export container images to portable tarball files for backup or transfer.
+
+Steps
+List available images:
+
+podman images
+Note the IMAGE ID or REPOSITORY:TAG of your alpine image.
+
+Save image to tarball:
+
+podman save -o alpine_backup.tar docker.io/library/alpine:latest
+-o: Specifies output file
+Last argument is the image reference
+Verify the tarball:
+
+ls -lh alpine_backup.tar
+file alpine_backup.tar
+Expected: A .tar file of ~3MB
+
+Troubleshooting
+If you get "no such image", verify the exact image name with podman images
+Ensure you have write permissions in the current directory
+Task 2: Load an Image from Tarball
+Objective
+Learn to restore container images from previously saved tarballs.
+
+Steps
+First, remove the original image:
+
+podman rmi docker.io/library/alpine:latest
+Load image from tarball:
+
+podman load -i alpine_backup.tar
+Expected output showing the image being loaded
+
+Verify restored image:
+
+podman images
+Should show the alpine image again
+
+Key Concept
+Loading preserves the original image name and tags
+The loaded image will have the same layers as the original
+Task 3: Commit Container to New Image
+Objective
+Learn to create new images from modified containers.
+
+Steps
+Run a container interactively:
+
+podman run -it --name myalpine docker.io/library/alpine:latest /bin/sh
+Make changes inside container:
+
+touch /testfile
+echo "Lab 12" > /testfile
+exit
+Commit the container:
+
+podman commit myalpine my_custom_alpine:v1
+Verify new image:
+
+podman images
+podman run --rm my_custom_alpine:v1 cat /testfile
+Should show "Lab 12" output
+
+Use Case
+This is useful when you need to:
+
+Save a container's state for debugging
+Create custom images without Dockerfiles
+Preserve configurations made at runtime
+Task 4: Understanding Limitations
+Key Considerations
+Tarball Portability:
+
+Saved images are architecture-specific
+An image saved on x86_64 won't work on ARM systems
+Commit Limitations:
+
+podman commit --help | grep -A5 "Limitations"
+Doesn't capture:
+Running processes
+Volumes
+Network configurations
+Storage Requirements:
+
+podman system df
+Shows disk usage - commits and saves consume additional space
+
+Conclusion
+Summary
+In this lab you:
+
+Created portable backups of images with podman save
+Restored images using podman load
+Built custom images from running containers with podman commit
+Learned about practical limitations of these operations
+Real-World Applications
+Migrating images between air-gapped systems
+Creating golden images from tested containers
+Disaster recovery preparations
+Next Steps
+Practice with larger images (try Ubuntu or CentOS)
+Experiment with multi-arch image handling
+Explore podman export/import for container filesystem backups
+Cleanup
+podman rm -a
+podman rmi -a
+rm alpine_backup.tar
+Knowledge Check
+What's the difference between podman save and podman export?
+How would you verify the integrity of a saved tarball?
+When would you choose commit over building with a Dockerfile?
+Answers:
+
+save works with images (preserving layers/metadata), export works with containers (filesystem only)
+Checksum verification: sha256sum alpine_backup.tar
+When you need to preserve runtime state or don't have the Dockerfile
