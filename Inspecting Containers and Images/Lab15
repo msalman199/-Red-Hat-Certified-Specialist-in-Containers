@@ -1,0 +1,106 @@
+Inspecting Containers and Images with Podman
+
+## **Lab Objectives**
+By the end of this lab, you will be able to:
+- Use `podman inspect` to examine container and image metadata
+- Extract and analyze environment variables
+- Review volume mounts and network port configurations
+- Interpret container status and exit codes for troubleshooting
+
+## **Prerequisites**
+- A Linux system with Podman installed (RHEL/CentOS/Fedora recommended)
+- Basic familiarity with terminal commands
+- A running container to inspect (we'll create one during the lab)
+
+## **Lab Setup**
+1. Install Podman if not already present:
+   ```bash
+   sudo dnf install -y podman  # RHEL/CentOS/Fedora
+Verify installation:
+
+podman --version
+Pull a sample image:
+
+podman pull docker.io/library/nginx:alpine
+Task 1: Inspecting Container and Image Metadata
+Subtask 1.1: Basic Inspection
+1.1 Run a sample container:
+
+podman run -d --name my_nginx -p 8080:80 nginx:alpine
+1.2 Inspect the container:
+
+podman inspect my_nginx
+Expected Output: JSON output showing container details
+
+1.3 Inspect the image:
+
+podman inspect nginx:alpine
+Key Concept: Image inspection shows static configuration, while container inspection shows runtime state.
+
+Subtask 1.2: Filtering Specific Information
+1.4 Get just the container's IP address:
+
+podman inspect my_nginx --format '{{.NetworkSettings.IPAddress}}'
+1.5 Get the container's creation time:
+
+podman inspect my_nginx --format '{{.Created}}'
+Task 2: Extracting Environment Variables
+Subtask 2.1: Viewing All Environment Variables
+2.1 Run a container with custom env vars:
+
+podman run -d --name env_test -e APP_COLOR=blue -e APP_MODE=prod nginx:alpine
+2.2 Inspect environment variables:
+
+podman inspect env_test --format '{{.Config.Env}}'
+Subtask 2.2: Finding Specific Variables
+2.3 Check for APP_COLOR specifically:
+
+podman inspect env_test --format '{{range .Config.Env}}{{if eq (index (split . "=") 0) "APP_COLOR"}}{{.}}{{end}}{{end}}'
+Task 3: Reviewing Volume Mounts and Ports
+Subtask 3.1: Examining Volume Mounts
+3.1 Create a container with a volume:
+
+podman run -d --name vol_test -v /tmp:/container_tmp nginx:alpine
+3.2 Inspect mounts:
+
+podman inspect vol_test --format '{{.Mounts}}'
+Subtask 3.2: Analyzing Port Mappings
+3.3 Inspect port bindings:
+
+podman inspect my_nginx --format '{{.NetworkSettings.Ports}}'
+3.4 Get just the host port mapping:
+
+podman inspect my_nginx --format '{{(index (index .NetworkSettings.Ports "80/tcp") 0).HostPort}}'
+Task 4: Analyzing Container Status and Exit Codes
+Subtask 4.1: Checking Running Status
+4.1 Create a failing container:
+
+podman run --name fail_test alpine sh -c "exit 3"
+4.2 Inspect the exit code:
+
+podman inspect fail_test --format '{{.State.ExitCode}}'
+Troubleshooting Tip: Non-zero exit codes indicate errors. Check application logs for details.
+
+Subtask 4.2: Comprehensive State Analysis
+4.3 Get full state information:
+
+podman inspect my_nginx --format '{{json .State}}' | jq
+Note: jq provides pretty-printed JSON output. Install with sudo dnf install jq if needed.
+
+Cleanup
+podman stop my_nginx env_test vol_test
+podman rm my_nginx env_test vol_test fail_test
+podman rmi nginx:alpine
+Conclusion
+In this lab, you learned to:
+
+Extract detailed metadata from containers and images
+Analyze environment configurations
+Examine storage and network settings
+Troubleshoot using container state information
+These skills are essential for debugging containerized applications and understanding their runtime behavior.
+
+Additional Exercises
+Create a container with multiple environment variables and extract them in a readable format
+Compare the output of podman inspect on a running versus stopped container
+Write a script that automatically checks all containers for non-zero exit codes
