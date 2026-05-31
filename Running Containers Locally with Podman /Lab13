@@ -1,0 +1,105 @@
+Running Containers Locally with Podman
+Objectives
+By the end of this lab, you will be able to:
+
+Run containers in both foreground and detached modes
+Configure port mapping between host and container
+Manage persistent storage using volumes
+Override user settings at runtime
+Inspect running containers and their configurations
+Prerequisites
+Linux system with Podman installed (Podman 3.0+ recommended)
+Basic understanding of Linux command line
+Internet access to pull container images
+Setup Requirements
+Install Podman if not already present:
+sudo dnf install -y podman  # For RHEL/CentOS/Fedora
+sudo apt-get install -y podman  # For Debian/Ubuntu
+Verify installation:
+podman --version
+Task 1: Running Containers in Foreground and Background
+Subtask 1.1: Run a Container in Foreground
+Run a simple container in foreground:
+
+podman run --name foreground-container docker.io/library/nginx
+This will start an NGINX container and attach your terminal to it
+Expected Outcome: You'll see NGINX logs in your terminal
+Terminate the container by pressing Ctrl+C
+
+Subtask 1.2: Run a Container in Detached Mode
+Start a container in background:
+
+podman run -d --name background-container docker.io/library/nginx
+The -d flag runs the container in detached mode
+Expected Outcome: You'll get a container ID but retain terminal control
+Verify the container is running:
+
+podman ps
+Task 2: Port Mapping and Volume Binding
+Subtask 2.1: Bind Container Ports to Host
+Map container port 80 to host port 8080:
+
+podman run -d --name webapp -p 8080:80 docker.io/library/nginx
+Key Concept: -p HOST_PORT:CONTAINER_PORT maps ports
+Verify access:
+
+curl http://localhost:8080
+Expected Outcome: You should see the NGINX welcome page
+Subtask 2.2: Create Persistent Storage with Volumes
+Create a volume:
+
+podman volume create mydata
+Run a container with volume mounted:
+
+podman run -d --name vol-container -v mydata:/data docker.io/library/alpine tail -f /dev/null
+Verify volume mounting:
+
+podman exec vol-container ls /data
+Task 3: User Management and Runtime Overrides
+Subtask 3.1: Override User at Runtime
+Run a container as specific user:
+
+podman run --rm -it --user 1000 docker.io/library/alpine whoami
+Expected Outcome: The command will return "whoami: unknown uid 1000"
+For a known user (e.g., nobody):
+
+podman run --rm -it --user nobody docker.io/library/alpine whoami
+Expected Outcome: "nobody"
+Subtask 3.2: Inspect Running Containers
+Get detailed container information:
+
+podman inspect webapp
+View container logs:
+
+podman logs webapp
+Check resource usage:
+
+podman stats
+Task 4: Cleanup
+Stop all running containers:
+
+podman stop -a
+Remove containers:
+
+podman rm -a
+Remove volumes (optional):
+
+podman volume rm mydata
+Troubleshooting Tips
+If you get "permission denied" errors, try running with --privileged flag
+For port conflicts, verify no other service is using the same port with ss -tulnp
+If containers exit immediately, check logs with podman logs <container>
+Conclusion
+In this lab, you've learned essential Podman container management skills:
+
+Running containers in both interactive and detached modes
+Configuring network access through port mapping
+Implementing persistent storage with volumes
+Managing user permissions at runtime
+Inspecting container states and configurations
+These skills form the foundation for working with containers in development and production environments.
+
+Next Steps
+Explore Podman pods for multi-container applications
+Learn about Podman's rootless mode for enhanced security
+Experiment with container health checks and auto-restart policies
