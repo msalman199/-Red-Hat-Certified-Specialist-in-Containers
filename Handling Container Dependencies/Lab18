@@ -1,0 +1,172 @@
+Handling Container Dependencies
+Objectives
+By the end of this lab, you will be able to:
+
+Implement depends_on in Docker Compose files to manage service startup order
+Write simple health check scripts for container services
+Implement retry logic in container entrypoints
+Test service connectivity between dependent containers
+Prerequisites
+Basic understanding of Docker/Podman and container concepts
+Docker or Podman installed (Podman preferred for OpenShift alignment)
+Docker Compose or Podman Compose installed
+Text editor (VS Code, nano, vim, etc.)
+Terminal/command line access
+Lab Setup
+Create a new directory for this lab:
+mkdir container-dependencies-lab && cd container-dependencies-lab
+Verify your Podman/Docker installation:
+podman --version
+podman-compose --version
+Task 1: Using depends_on in Compose Files
+Subtask 1.1: Create Basic Services
+Create a docker-compose.yml file with two services:
+version: '3.8'
+services:
+  db:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_PASSWORD: example
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  web:
+    image: nginx:alpine
+    ports:
+      - "8080:80"
+    depends_on:
+      db:
+        condition: service_healthy
+Subtask 1.2: Understand the Configuration
+depends_on: Ensures web starts only after db is healthy
+healthcheck: Defines how to check if PostgreSQL is ready
+condition: service_healthy: Only proceed when health checks pass
+Subtask 1.3: Start the Services
+podman-compose up -d
+Expected Outcome: The web service will only start after the database passes health checks.
+
+Task 2: Writing Health Check Scripts
+Subtask 2.1: Create Custom Health Check
+Create a healthcheck.sh script for a Python service:
+#!/bin/sh
+
+# Check if database is reachable
+if curl -s http://db:5432 | grep -q 'PostgreSQL'; then
+  exit 0
+else
+  exit 1
+fi
+Make it executable:
+chmod +x healthcheck.sh
+Subtask 2.2: Implement in Compose
+Add to your docker-compose.yml:
+
+app:
+  image: python:3.9-alpine
+  volumes:
+    - ./healthcheck.sh:/healthcheck.sh
+  healthcheck:
+    test: ["CMD", "/healthcheck.sh"]
+    interval: 10s
+    timeout: 5s
+    retries: 3
+Task 3: Implementing Retry Logic in Entrypoint
+Subtask 3.1: Create Entrypoint Script
+Create entrypoint.sh:
+#!/bin/sh
+
+# Retry parameters
+max_retries=5
+retry_delay=5
+
+# Wait for database
+for i in $(seq 1 $max_retries); do
+  if nc -z db 5432; then
+    echo "Database is ready!"
+    exec "$@"
+    break
+  else
+    echo "Waiting for database... Attempt $i/$max_retries"
+    sleep $retry_delay
+  fi
+done
+
+echo "Failed to connect to database after $max_retries attempts"
+exit 1
+Make it executable:
+chmod +x entrypoint.sh
+Subtask 3.2: Update Dockerfile
+Create a Dockerfile:
+
+FROM python:3.9-alpine
+WORKDIR /app
+COPY entrypoint.sh .
+RUN chmod +x entrypoint.sh
+ENTRYPOINT ["./entrypoint.sh"]
+CMD ["python", "app.py"]
+Task 4: Testing Service Connectivity
+Subtask 4.1: Create Test Application
+Create app.py:
+import os
+import psycopg2
+from time import sleep
+
+def connect_db():
+    try:
+        conn = psycopg2.connect(
+            host="db",
+            database="postgres",
+            user="postgres",
+            password=os.getenv("POSTGRES_PASSWORD")
+        )
+        print("Successfully connected to database!")
+        conn.close()
+        return True
+    except Exception as e:
+        print(f"Connection failed: {e}")
+        return False
+
+if __name__ == "__main__":
+    connect_db()
+Subtask 4.2: Update Compose File
+app:
+  build: .
+  depends_on:
+    db:
+      condition: service_healthy
+  environment:
+    POSTGRES_PASSWORD: example
+Subtask 4.3: Test the Setup
+podman-compose up --build
+Expected Outcome: The app container will wait for the database to be ready before attempting to connect.
+
+Troubleshooting Tips
+If containers fail to start:
+
+Check logs: podman-compose logs
+Verify health checks: podman inspect --format='{{.State.Health.Status}}' container_name
+If health checks fail:
+
+Adjust intervals and retries in compose file
+Test health check scripts manually
+For connection issues:
+
+Verify network connectivity between containers
+Check service names match in configurations
+Conclusion
+In this lab, you've successfully:
+
+Implemented container dependency management using depends_on with health checks
+Created custom health check scripts to verify service readiness
+Developed robust entrypoint scripts with retry logic
+Tested service connectivity between dependent containers
+These skills are essential for building reliable containerized applications where services must start in a specific order and handle dependencies gracefully.
+
+Cleanup
+To remove all resources:
+
+podman-compose down
+podman system prune -f
