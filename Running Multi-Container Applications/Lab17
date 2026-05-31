@@ -1,0 +1,147 @@
+Running Multi-Container Applications
+Objectives
+By the end of this lab, you will be able to:
+
+Define and deploy multi-container applications using podman-compose
+Configure volumes, networks, and secrets for multi-container applications
+Deploy applications using Kubernetes YAML with podman play kube
+Prerequisites
+Podman installed (version 3.0+)
+podman-compose installed (pip install podman-compose)
+Basic understanding of Docker/Podman concepts
+Basic familiarity with YAML syntax
+Lab Setup
+Ensure Podman is running:
+systemctl start podman
+Verify installation:
+podman --version
+podman-compose --version
+Task 1: Create and Deploy a Multi-Container Application with podman-compose
+Subtask 1.1: Create a docker-compose.yml File
+We'll create a simple web application with:
+
+A Python Flask web service
+A Redis cache
+A PostgreSQL database
+Create a project directory:
+
+mkdir multi-container-lab && cd multi-container-lab
+Create docker-compose.yml:
+
+version: '3.8'
+
+services:
+  web:
+    image: docker.io/python:3.9
+    command: python -m http.server 8000
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./app:/app
+    depends_on:
+      - redis
+      - db
+    networks:
+      - app-network
+
+  redis:
+    image: docker.io/redis:alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    networks:
+      - app-network
+
+  db:
+    image: docker.io/postgres:13-alpine
+    environment:
+      POSTGRES_PASSWORD: example
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    networks:
+      - app-network
+
+volumes:
+  redis-data:
+  postgres-data:
+
+networks:
+  app-network:
+    driver: bridge
+Subtask 1.2: Deploy the Stack
+Start the services:
+
+podman-compose up -d
+Verify the containers are running:
+
+podman ps
+Check the web service:
+
+curl http://localhost:8000
+Expected Outcome: You should see the Python HTTP server response.
+
+Task 2: Add Secrets Management
+Subtask 2.1: Create Secrets
+Create a secret for the database:
+
+echo "supersecret" | podman secret create db_password -
+Update docker-compose.yml to use the secret:
+
+services:
+  db:
+    image: docker.io/postgres:13-alpine
+    secrets:
+      - db_password
+    environment:
+      POSTGRES_PASSWORD_FILE: /run/secrets/db_password
+secrets:
+  db_password:
+    external: true
+Redeploy:
+
+podman-compose down
+podman-compose up -d
+Troubleshooting Tip: If you get permission errors, try:
+
+sudo setsebool -P container_manage_cgroup true
+Task 3: Deploy with Kubernetes YAML
+Subtask 3.1: Generate Kubernetes YAML
+Create a Kubernetes deployment file:
+
+podman kube generate --service -f k8s-deployment.yaml web redis db
+Examine the generated k8s-deployment.yaml file.
+
+Subtask 3.2: Deploy with podman play kube
+Deploy the application:
+
+podman play kube k8s-deployment.yaml
+Verify deployment:
+
+podman pod ps
+podman ps
+Conclusion
+In this lab, you've learned to:
+
+Define multi-container applications using docker-compose.yml
+Configure volumes, networks, and secrets
+Deploy applications with podman-compose
+Generate and deploy Kubernetes YAML with podman play kube
+These skills are essential for managing complex containerized applications in development and production environments.
+
+Cleanup
+Stop and remove all containers:
+
+podman-compose down
+podman pod rm -a -f
+podman rm -a -f
+Remove volumes:
+
+podman volume prune
+Remove secrets:
+
+podman secret rm db_password
+Additional Resources
+Podman Documentation
+Compose Specification
+Kubernetes YAML Reference
