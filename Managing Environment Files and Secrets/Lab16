@@ -1,0 +1,101 @@
+Managing Environment Files and Secrets with Podman
+Objectives
+By the end of this lab, you will be able to:
+
+Create and use .env files to manage environment variables
+Pass environment variables to containers from files
+Create and manage Podman secrets for sensitive data
+Reference secrets in Podman Compose YAML files
+Prerequisites
+Podman installed (version 3.0+ recommended)
+Basic familiarity with Linux command line
+Text editor (vim/nano/VSCode)
+Podman Compose installed (pip install podman-compose)
+Lab Setup
+Create a working directory:
+mkdir podman-secrets-lab && cd podman-secrets-lab
+Task 1: Working with Environment Files
+Subtask 1.1: Create .env File
+Create a new .env file:
+cat <<EOF > .env
+APP_NAME=MySecureApp
+DB_USER=admin
+DB_PASS=SuperSecret123!
+EOF
+Verify file contents:
+cat .env
+Expected Output:
+
+APP_NAME=MySecureApp
+DB_USER=admin
+DB_PASS=SuperSecret123!
+Subtask 1.2: Use Environment Variables in Container
+Create a simple container that reads these variables:
+podman run --rm --env-file=.env alpine env | grep -E 'APP_NAME|DB_'
+Expected Output:
+
+APP_NAME=MySecureApp
+DB_USER=admin
+DB_PASS=SuperSecret123!
+Key Concept: The --env-file flag allows bulk loading of environment variables from a file.
+
+Task 2: Working with Podman Secrets
+Subtask 2.1: Create a Secret
+Create a secret from a file:
+echo "TopSecretPassword" > db_password.txt
+podman secret create db_password_secret db_password.txt
+List existing secrets:
+podman secret ls
+Expected Output:
+
+ID                      NAME                DRIVER    CREATED          UPDATED
+xxxxxxxxxxxx    db_password_secret   file      X seconds ago   X seconds ago
+Subtask 2.2: Use Secret in a Container
+Run a container with the secret:
+podman run --rm --secret=db_password_secret alpine cat /run/secrets/db_password_secret
+Expected Output:
+
+TopSecretPassword
+Troubleshooting Tip: If you get permission errors, ensure you're running as root or using --privileged flag.
+
+Task 3: Podman Compose Integration
+Subtask 3.1: Create docker-compose.yml
+Create a compose file that uses both environment variables and secrets:
+cat <<EOF > docker-compose.yml
+version: '3.8'
+services:
+  webapp:
+    image: alpine
+    env_file: .env
+    secrets:
+      - db_password_secret
+    command: sh -c "echo \$APP_NAME && cat /run/secrets/db_password_secret"
+secrets:
+  db_password_secret:
+    external: true
+EOF
+Subtask 3.2: Deploy with Podman Compose
+Run the compose file:
+podman-compose up
+Expected Output:
+
+webapp_1  | MySecureApp
+webapp_1  | TopSecretPassword
+Key Concept: The external: true indicates the secret exists outside the compose file.
+
+Conclusion
+In this lab, you've learned:
+
+How to manage environment variables using .env files
+The process of creating and using Podman secrets
+How to integrate both techniques in Podman Compose files
+These skills are essential for secure container deployment, ensuring sensitive data is properly managed in production environments.
+
+Cleanup
+Remove the secret:
+podman secret rm db_password_secret
+Remove the test files:
+cd .. && rm -rf podman-secrets-lab
+Additional Resources
+Podman Secrets Documentation: man podman-secret
+Environment Variables Best Practices: https://12factor.net/config
