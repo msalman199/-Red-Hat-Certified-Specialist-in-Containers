@@ -1,0 +1,132 @@
+
+Objectives
+By the end of this lab, you will be able to:
+
+Understand different volume types in containerization
+Create and manage named volumes
+Implement bind mounts with proper SELinux context (:Z option)
+Configure host directory permissions for container access
+Verify data persistence across container lifecycles
+Prerequisites
+Podman installed (version 3.0+ recommended)
+Basic Linux command line knowledge
+SELinux enabled system (default on RHEL-based systems)
+sudo privileges for certain operations
+Lab Setup
+Ensure Podman is installed:
+sudo dnf install podman
+Verify installation:
+podman --version
+Task 1: Creating and Using Named Volumes
+Subtask 1.1: Create a Named Volume
+podman volume create mydata_volume
+Explanation:
+This creates a persistent storage volume managed by Podman.
+
+Verification:
+
+podman volume ls
+Expected Output:
+
+DRIVER      VOLUME NAME
+local       mydata_volume
+Subtask 1.2: Use the Volume in a Container
+podman run -d --name volume_test -v mydata_volume:/data docker.io/library/alpine sleep infinity
+Explanation:
+This runs an Alpine container with the volume mounted at /data.
+
+Verification:
+
+podman exec volume_test ls /data
+(No output expected as the directory is empty)
+
+Subtask 1.3: Test Data Persistence
+podman exec volume_test sh -c "echo 'Persistent Data' > /data/testfile"
+podman stop volume_test
+podman rm volume_test
+podman run --name new_test -v mydata_volume:/data docker.io/library/alpine cat /data/testfile
+Expected Output:
+
+Persistent Data
+Task 2: Bind Mounts with SELinux Context
+Subtask 2.1: Create Host Directory
+mkdir ~/container_data
+echo "Host file content" > ~/container_data/hostfile.txt
+Subtask 2.2: Mount with :Z Option
+podman run -it --rm -v ~/container_data:/container_data:Z docker.io/library/alpine cat /container_data/hostfile.txt
+Explanation:
+The :Z option tells SELinux to relabel the content for container access.
+
+Expected Output:
+
+Host file content
+Subtask 2.3: Verify SELinux Context
+ls -Z ~/container_data/hostfile.txt
+Expected Output:
+
+unconfined_u:object_r:container_file_t:s0 /home/user/container_data/hostfile.txt
+Task 3: Adjusting Host Directory Permissions
+Subtask 3.1: Create Restricted Directory
+sudo mkdir /restricted_data
+sudo chmod 700 /restricted_data
+sudo chown root:root /restricted_data
+Subtask 3.2: Test Access Without Adjustments
+podman run -it --rm -v /restricted_data:/data docker.io/library/alpine touch /data/testfile
+Expected Outcome: Permission denied error
+
+Subtask 3.3: Fix Permissions and SELinux
+sudo chmod 755 /restricted_data
+sudo chcon -t container_file_t /restricted_data
+podman run -it --rm -v /restricted_data:/data:Z docker.io/library/alpine touch /data/testfile
+Verification:
+
+ls -lZ /restricted_data
+Should show the new file with correct context
+
+Task 4: Comprehensive Data Persistence Test
+Subtask 4.1: Create Test Environment
+podman run -d --name persist_test -v mydata_volume:/data -v ~/container_data:/container_data:Z docker.io/library/alpine sleep infinity
+Subtask 4.2: Write Test Data
+podman exec persist_test sh -c "echo 'Named Volume Data' >> /data/named.txt"
+podman exec persist_test sh -c "echo 'Bind Mount Data' >> /container_data/bind.txt"
+Subtask 4.3: Verify Persistence
+podman stop persist_test
+podman rm persist_test
+podman run --rm -v mydata_volume:/data docker.io/library/alpine cat /data/named.txt
+cat ~/container_data/bind.txt
+Expected Output:
+
+Named Volume Data
+Bind Mount Data
+Troubleshooting Tips
+If getting permission errors:
+
+Ensure SELinux is in enforcing mode (getenforce)
+Use :Z for bind mounts
+Check directory permissions (ls -lZ)
+Volume not persisting:
+
+Verify volume exists (podman volume ls)
+Check mount point in container (podman inspect <container>)
+SELinux issues:
+
+Check audit logs (sudo ausearch -m avc -ts recent)
+Consider temporary permissive mode for testing (sudo setenforce 0)
+Conclusion
+In this lab, you have:
+
+Created and utilized named volumes for persistent storage
+Implemented bind mounts with proper SELinux context
+Configured host directory permissions for container access
+Verified data persistence across container instances
+These skills are fundamental for managing storage in containerized environments and are essential for the Red Hat OpenShift Development certification.
+
+Cleanup
+podman volume rm mydata_volume
+podman rm -f $(podman ps -aq)
+rm -rf ~/container_data
+sudo rm -rf /restricted_data
+Additional Resources
+Podman Volumes Documentation: man podman-volume
+SELinux for Containers: man container_selinux
+Red Hat Container Storage Guide: https://access.redhat.com/documentation/en-us/red_hat_enterprise_linux/8/html-single/building_running_and_managing_containers/index
