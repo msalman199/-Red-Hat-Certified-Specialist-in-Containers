@@ -1,0 +1,108 @@
+Image Tagging and Registry Interaction
+Objectives
+By the end of this lab, you will be able to:
+
+Tag container images with semantic versioning
+Authenticate with container registries (Docker Hub or private)
+Push and pull images from registries
+Understand tag immutability and image digests
+Prerequisites
+Podman installed (version 3.0+)
+A Docker Hub account (or access to a private registry)
+Basic familiarity with Linux command line
+Internet access
+Lab Tasks
+Task 1: Tagging Images Semantically
+Objective: Learn to apply meaningful tags to container images
+
+List existing images:
+
+podman images
+Tag an existing image:
+
+podman tag <source_image> <new_name>:<tag>
+Example:
+
+podman tag docker.io/library/nginx my-nginx:v1.0
+Verify the new tag:
+
+podman images | grep nginx
+Expected Output: You should see both the original nginx image and your newly tagged version.
+
+Key Concept: Tags should follow semantic versioning (vMAJOR.MINOR.PATCH) for production images.
+
+Task 2: Logging into a Registry
+Objective: Authenticate with Docker Hub or private registry
+
+Login to Docker Hub:
+
+podman login docker.io
+Enter your Docker Hub username and password when prompted.
+
+Verify login:
+
+podman info | grep -A 5 "registries"
+Troubleshooting Tip: If using a private registry, replace docker.io with your registry URL.
+
+Task 3: Pushing Images to Registry
+Objective: Upload your tagged image to a registry
+
+Tag image with registry prefix:
+
+podman tag my-nginx:v1.0 docker.io/<your_username>/my-nginx:v1.0
+Push the image:
+
+podman push docker.io/<your_username>/my-nginx:v1.0
+Verify on Docker Hub:
+
+Log in to Docker Hub web interface
+Check your repository for the pushed image
+Expected Outcome: Image appears in your Docker Hub repository.
+
+Task 4: Pulling Images from Registry
+Objective: Download images from a registry
+
+Remove local image:
+
+podman rmi docker.io/<your_username>/my-nginx:v1.0
+Pull the image:
+
+podman pull docker.io/<your_username>/my-nginx:v1.0
+Verify the download:
+
+podman images
+Key Concept: Pulling always fetches the image associated with the tag at that moment.
+
+Task 5: Understanding Tag Immutability and Digests
+Objective: Learn about image digests and tag behavior
+
+Inspect image digest:
+
+podman inspect --format '{{.Digest}}' docker.io/<your_username>/my-nginx:v1.0
+Pull by digest:
+
+podman pull docker.io/<your_username>/my-nginx@<digest>
+Test tag immutability:
+
+Push a new image with same tag
+Notice how the digest changes
+Explanation: While tags can be reassigned, digests are immutable identifiers for specific image versions.
+
+Conclusion
+In this lab, you've learned essential skills for working with container images and registries:
+
+Applied semantic versioning to image tags
+Authenticated with container registries
+Pushed and pulled images
+Understood the importance of digests and tag immutability
+These skills form the foundation for efficient container image management in production environments.
+
+Next Steps
+Explore private registry setup with Podman
+Learn about image signing and verification
+Practice multi-architecture image tagging
+Cleanup
+Remove all lab images:
+
+podman rmi -f $(podman images -q)
+Note: This will remove ALL images from your system. Use with caution.
