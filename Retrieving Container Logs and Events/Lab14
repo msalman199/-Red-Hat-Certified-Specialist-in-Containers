@@ -1,0 +1,89 @@
+Retrieving Container Logs and Events
+Objectives
+View and filter container logs using Podman
+Monitor container lifecycle events
+Configure alternative log drivers
+Analyze events for troubleshooting purposes
+Prerequisites
+Podman installed on your system (version 3.0+ recommended)
+Basic familiarity with Linux command line
+A running container (we'll create one during the lab)
+Lab Setup
+Verify Podman installation:
+podman --version
+Pull a sample container image:
+podman pull docker.io/library/nginx:alpine
+Task 1: Viewing Container Logs
+Subtask 1.1: Basic Log Viewing
+Run a container in detached mode:
+podman run -d --name nginx-container docker.io/library/nginx:alpine
+View the container logs:
+podman logs nginx-container
+Expected Output: Displays the NGINX startup logs.
+
+Subtask 1.2: Following Logs in Real-Time
+Use the --follow flag to stream logs:
+podman logs --follow nginx-container
+Note: Press Ctrl+C to stop following logs.
+
+Subtask 1.3: Filtering Logs by Time
+View logs from the last 5 minutes:
+podman logs --since 5m nginx-container
+View logs between specific times:
+podman logs --since 2023-01-01T00:00:00 --until 2023-01-01T12:00:00 nginx-container
+Task 2: Configuring Alternative Log Drivers
+Subtask 2.1: Using JSON File Logging
+Run a container with JSON log driver:
+podman run -d --name json-logger --log-driver json-file docker.io/library/nginx:alpine
+Verify the log file location:
+podman inspect --format '{{.HostConfig.LogConfig.Path}}' json-logger
+Subtask 2.2: Using Journald Logging
+Run a container with journald driver:
+podman run -d --name journald-logger --log-driver journald docker.io/library/nginx:alpine
+View logs in journald:
+journalctl CONTAINER_NAME=journald-logger
+Task 3: Monitoring Container Events
+Subtask 3.1: Basic Event Monitoring
+Start monitoring events in one terminal:
+podman events --format "{{.Time}} {{.Type}} {{.Status}}"
+In another terminal, create a new container:
+podman run -d --name event-test docker.io/library/nginx:alpine
+Expected Output: Events terminal will show container creation and start events.
+
+Subtask 3.2: Filtering Events
+Filter for only start events:
+podman events --filter event=start
+Filter for a specific container:
+podman events --filter container=event-test
+Filter by event type and time:
+podman events --filter event=die --since 1h
+Task 4: Troubleshooting with Logs and Events
+Subtask 4.1: Analyzing a Failing Container
+Create a container that will fail:
+podman run --name failing-container docker.io/library/alpine /bin/nonexistent-command
+View the error logs:
+podman logs failing-container
+Check the events:
+podman events --filter container=failing-container --since 1m
+Subtask 4.2: Debugging with Detailed Logs
+Run a container with debug logging:
+podman run -d --name debug-container --log-level=debug docker.io/library/nginx:alpine
+View the detailed logs:
+podman logs debug-container
+Conclusion
+In this lab, you've learned:
+
+How to view and follow container logs using Podman
+Techniques for filtering and analyzing logs
+Configuration of alternative log drivers (json-file and journald)
+Monitoring container lifecycle events with filters
+Troubleshooting container issues using logs and events
+These skills are essential for maintaining and debugging containerized applications in production environments.
+
+Cleanup
+Remove all created containers:
+
+podman rm -f nginx-container json-logger journald-logger event-test failing-container debug-container
+Additional Resources
+Podman documentation: https://docs.podman.io
+Journald documentation: https://www.freedesktop.org/software/systemd/man/journalctl.html
